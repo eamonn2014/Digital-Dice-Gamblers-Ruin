@@ -1,0 +1,258 @@
+---
+title: "Gambler's Ruin, A Curious Coin Flipping Game"
+author: "Eamonn"
+date: '`r format(Sys.time(), "%d %B, %Y")`'
+header-includes:
+- \usepackage{eso-pic,graphicx,transparent}
+- \usepackage{graphicx}
+- \usepackage{fancyhdr}
+- \pagestyle{fancy}
+- \setlength\headheight{22pt}
+- \fancyfoot[RO]{Gambler's Ruin Simulation}
+- \usepackage{lastpage}
+- \cfoot{Page \thepage\ of \pageref{LastPage}}
+output:
+  pdf_document:
+    fig_caption: yes
+    fig_height: 6
+    fig_width: 8
+    number_sections: no
+  html_document: default
+  word_document: default
+---
+ 
+ 
+\AddToShipoutPictureFG{
+  \AtPageCenter{% or \AtTextCenter
+    \makebox[0pt]{\rotatebox[origin=c]{45}{%
+      \scalebox{5}{\texttransparent{0.3}{  }}%
+    }}
+  }
+}
+ 
+ 
+ 
+```{r set-options, echo=FALSE, cache=FALSE, warning = FALSE}
+ 
+        rm(list=ls())
+ 
+        set.seed(123)
+        startTime<-proc.time()
+        library(knitr)
+        options(width=70)
+        opts_chunk$set(comment = "", warning = FALSE, message = FALSE,
+                       echo = FALSE, tidy = FALSE, size="tiny",  cache=FALSE,
+                       progress=TRUE,
+                       cache.path = 'program_Cache/',
+                       fig.path='figure/')
+         
+        knitr::knit_hooks$set(inline = function(x) {
+          knitr:::format_sci(x, 'md')
+        })
+         
+        
+```
+ 
+<!-- \begin{figure}[t!] -->
+<!--   \centering -->
+<!--     \includegraphics[keepaspectratio, width=0.2\textwidth]{LOGO.png} -->
+<!--   \label{fig:RSUencountered} -->
+<!-- \end{figure} -->
+ 
+ 
+ 
+ 
+```{r prerequisites, echo=FALSE}
+
+        where<-"home"
+        x  <- "Users\\User\\Documents\\GIT"
+        
+        path <- paste(x,"\\Digital-Dice-Gamblers-Ruin",sep="")
+        path2 <- paste(x,"\\DATA",sep="")
+        
+        work<-    paste("C:/", path, sep = "")
+        nonwork<- paste("C:/", path, sep = "")
+        if (where=="home") {wd<- nonwork} else {wd<-work}
+        
+        work2<-    paste("X:/", path2, sep = "")
+        nonwork2<- paste("~/X/", path2, sep = "")
+        if (where=="home") {wd2<- nonwork2} else {wd2<-work2}
+        
+        work3<-    paste("X:/FUNCTIONS/R", sep = "")
+        nonwork3<- paste("~/X/FUNCTIONS/R", sep = "")
+        if (where=="home") {wd3<- nonwork3} else {wd3<-work3}
+        
+        setwd(wd)
+        opts_knit$set(root.dir = wd)                  ##THIS SETS YOUR WORKING DIRECTORY
+        
+```
+```{r preliminaries perhaps , echo=FALSE, results='hide'}
+ 
+        p3 <- function(x) {formatC(x, format="f", digits=3)}
+        p4 <- function(x) {formatC(x, format="f", digits=4)}
+        p2 <- function(x) {formatC(x, format="f", digits=2)}
+        p1 <- function(x) {print(formatC(x, format="f", digits=1),quote=FALSE)}
+        
+        #perhaps help colour plot text based on loop count
+        is.even <- function(x){ x %% 2 == 0 }
+ 
+        #### Load relevant packages
+        list.of.packages <- c("MKmisc")
+ 
+        new.packages <- 
+                list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+        if(length(new.packages)) install.packages(new.packages)
+        
+        sapply(X = list.of.packages, require, character.only = TRUE)
+        
+```
+
+```{r intro , echo=FALSE, results='asis'}
+
+  cat("# INTRODUCTION\n\n")
+  cat("Each gambler has a pot of coins and each gambler simultaneously flips a single coin. If n-1 coins show the same side and 1 coin differs, the owner of the differing coin wins. The winner collects a coin from all the losers. In all other situations nobody wins or loses and no exchange of coins occurs. This process continues until one of the gamblers has no coins. What is the average number of games required until one gambler is ruined? In the simulation the probability p of the coin can be varied, however all gamblers' coins have probability p. We can also vary the number of gamblers and the number of coins each gambler starts the game with.\n\n")
+
+        
+```
+ 
+\clearpage
+
+# Function in R to simulate Gambler's Ruin game to approximate the answers
+ 
+```{r reg expressions, echo=TRUE, results='asis' }
+ 
+# if the probability (p) is not the same for each player and all coins,
+# the coin may change hands and should be tracked,this is not done here
+
+# n is a vector of players and their pot of coins
+# p is a vector of players'/coins' constant probability
+
+ComputeNbTosses <- function(n, p) {
+  
+  n <- n
+  p <- p
+  nbTosses <- 0 
+  k <- length(n)
+  
+  # keep tossing while no player has zero coins
+  while (sum(n==0)==0) {
+    
+    # array to hold coin flips
+    res <- vector("list",k)
+ 
+    # toss the coins
+    for(i in 1:k) { res[[i]] <- rbinom(1, 1, p[i]) }
+    res <- unlist(res)
+    
+    # work out who won, if there is a winner
+    # this code will order a vector, if there is a winner, they are index #1
+    if ( sum(res) == k-1 ) {                # if tails wins all are 1 except for a tail '0'
+      
+      (winner <- which( res %in% min(res))) # which position is the '0'
+      res1 <- c(winner, (1:k)[-winner])     # put winner in 1st position and all others after winner
+      
+    } else if (sum(res) == 1) {             # if head wins, all are 0 except for a single head
+      
+      (winner <- which(!res %in% min(res))) # which position is the '1'
+      res1 <- c(winner, (1:k)[-winner]) 
+      
+    } else { res1 <- NULL }                 # stay the same if all tosses agree
+    
+    
+    # update players' pot of coins
+    if (is.null(res1)) {n=n} else {
+      
+      # the winner in vector position 1, so add k-1 coins to her pot
+      n[res1[1]]   <- n[res1[1]] + k-1
+      # the losers are in vector positions not 1, so take 1 coin from each
+      n[res1[2:k]] <- n[res1[2:k]]-1
+    }
+    
+    # print(n) # show this if you want to see the realisations
+    nbTosses = nbTosses + 1   # count the tosses
+    
+  }
+  
+  ret = list()
+  ret$nbTosses = nbTosses           # record the count of the tosses
+  return(ret)
+  
+} 
+
+```
+ 
+\clearpage
+
+# RESULTS
+
+Execute function a large number of times, n is a vector of players and their pot of coins and p is a vector of all coins success with a constant probability.
+
+ 
+```{r res, echo=FALSE, results='markdown' }
+ 
+
+cat("p=0.5\n\n")
+
+  sims <- 5000
+
+  summary(unlist(replicate(sims, ComputeNbTosses(n=c(1,1,1), p=c(0.5,0.5,0.5) ))))
+  
+  summary(unlist(replicate(sims, ComputeNbTosses(n=c(1,2,3), p=c(0.5,0.5,0.5) ))))
+ 
+  summary(unlist(replicate(sims, ComputeNbTosses(n=c(2,3,4), p=c(0.5,0.5,0.5) ))))
+  
+  summary(unlist(replicate(sims, ComputeNbTosses(n=c(3,3,3), p=c(0.5,0.5,0.5) ))))
+
+  summary(unlist(replicate(sims, ComputeNbTosses(n=c(4,7,9), p=c(0.5,0.5,0.5) ))))
+  
+cat("p=0.4\n\n")  
+  
+  summary(unlist(replicate(sims, ComputeNbTosses(n=c(1,1,1), p=c(0.4,0.4,0.4) ))))
+  
+  summary(unlist(replicate(sims, ComputeNbTosses(n=c(1,2,3), p=c(0.4,0.4,0.4) ))))
+ 
+  summary(unlist(replicate(sims, ComputeNbTosses(n=c(2,3,4), p=c(0.4,0.4,0.4) ))))
+  
+  summary(unlist(replicate(sims, ComputeNbTosses(n=c(3,3,3), p=c(0.4,0.4,0.4) ))))
+
+  summary(unlist(replicate(sims, ComputeNbTosses(n=c(4,7,9), p=c(0.4,0.4,0.4) ))))
+    
+  
+  
+```
+
+It would be interesting perhaps to track percentage wins for each gambler?
+
+
+```{r newpage, echo=FALSE, results='asis'}        
+
+      cat("\\clearpage\n\n")  
+
+```
+
+# CONCLUSION
+ 
+The simulated results agree very well with those in the book. 
+ 
+# REFERENCES
+
+[1] Digital Dice Computational Solutions to Practical Probability Problems P42 and P114, Paul Nahin, Second Edition, 2013
+ 
+# COMPUTING ENVIRONMENT
+ 
+```{r, echo=FALSE}
+options(width=70)
+opts_knit$set(root.dir = wd)   ##THIS SETS YOUR WORKING DIRECTORY
+sessionInfo()
+print(wd)
+```
+ 
+```{r echo=FALSE}
+ 
+stopTime<-proc.time()
+ 
+```
+ 
+This took `r (stopTime-startTime)[1][[1]]` seconds to execute.
+
+ 
