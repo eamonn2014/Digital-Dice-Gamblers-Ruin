@@ -185,7 +185,7 @@ ComputeNbTosses <- function(n, p) {
 
 # RESULTS
 
-Execute function a large number of times, n is a vector of players and their pot of coins and p is a vector of all coins success with a constant probability.
+Execute function a large number of times for the scenarios in the book (P117), n is a vector of players and their pot of coins and p is a vector of all coins success with a constant probability.
 
  
 ```{r res, echo=FALSE, results='markdown' }
@@ -232,7 +232,7 @@ It would be interesting perhaps to track percentage wins for each gambler?
 
 # CONCLUSION
  
-The simulated results agree very well with those in the book. 
+The simulated results agree very well with those in the book (see the table at the foot of page 117)
  
 # REFERENCES
 
